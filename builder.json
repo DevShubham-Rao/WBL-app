@@ -1,11 +1,11 @@
 {
-  "project": "builder ios build",
+  "project": "builder signing setup --distribution development --devices-from-mobai",
   "platform": "ios",
+  "provider": "github",
   "github": {
     "owner": "DevShubham-Rao",
-    "repo": "WBL-app"
+    "repo": "WBL-Visit-Tracker"
   },
-  "provider": "github",
   "codemagic": {},
   "bitrise": {},
   "ios": {},

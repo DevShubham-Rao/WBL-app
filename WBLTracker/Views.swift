@@ -79,7 +79,13 @@ struct StudentFormView: View {
     @EnvironmentObject var store: VisitStore
     @Environment(\.dismiss) var dismiss
     let student: Student?
-    @State private var first = "", last = "", year = "", grade = "", employer = "", address = "", phone = ""
+    @State private var first = ""
+    @State private var last = ""
+    @State private var year = ""
+    @State private var grade = ""
+    @State private var employer = ""
+    @State private var address = ""
+    @State private var phone = ""
     var body: some View {
         NavigationStack {
             Form {

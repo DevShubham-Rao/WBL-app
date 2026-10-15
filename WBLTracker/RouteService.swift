@@ -2,7 +2,7 @@ import Foundation
 import CoreLocation
 import MapKit
 
-@MainActor final class LocationService: NSObject, ObservableObject, CLLocationManagerDelegate {
+@MainActor final class LocationService: NSObject, ObservableObject, @preconcurrency CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     @Published var coordinate: CLLocationCoordinate2D?
     @Published var authorizationDenied = false
