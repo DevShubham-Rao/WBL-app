@@ -3,11 +3,17 @@ options:
   bundleIdPrefix: com.buildertest
   deploymentTarget:
     iOS: "17.2"
+packages:
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation.git
+    from: 0.9.19
 targets:
   WBLTracker:
     type: application
     platform: iOS
     sources: [WBLTracker]
+    dependencies:
+      - package: ZIPFoundation
     info:
       path: WBLTracker/Info.plist
       properties:

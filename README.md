@@ -30,3 +30,13 @@ For text input, paste comma-separated CSV rows. Quoted commas and escaped double
 - **GPS:** on-demand when planning; no background tracking. Denial can be bypassed by entering an origin address.
 - **Data privacy:** this prototype has no authentication, encryption-at-rest beyond device protections, remote sync, or school-managed access controls. Only import real student information on an appropriately managed device and after school/district approval. Back up/export data before deleting the app: uninstalling may erase its data.
 - **Build verification:** generated on a Linux runner where iOS SDK/Xcode is unavailable; run an Xcode build on macOS to validate before deployment.
+
+## Updated: spreadsheet import, complete export, and resets
+
+- **Students → Import**: Select an actual `.xlsx` workbook (including a Google Sheets export), `.csv`, `.tsv`, or `.txt` file in the iOS Files picker. The first worksheet of an Excel workbook is used. Review the first 15 students and total count before tapping Import. Headers should be: First Name, Last Name, Graduation Year, Grade, Employer Name, Employer Address, Phone Number. You can also paste CSV text.
+- **Data → Prepare complete export**: Creates a single shareable ZIP containing `students.csv`, `visits.csv`, `notes.csv`, `trips.csv`, `trip_stops.csv`, and `full_backup.json`. CSV files can be opened in spreadsheet programs; JSON is a complete archival snapshot. The export can be saved to iCloud Drive or shared using the iOS share sheet.
+- **Data → Start new month**: Keeps students, employers, addresses, phones and student notes, but clears visit flags/history, all trips and mileage. **Export first** to preserve prior months.
+- **Data → Delete all app data**: Deletes all local student, visit, notes and trip data after a confirmation prompt. **Export first**.
+- `ZIPFoundation` is an SPM dependency and will be fetched automatically by XcodeGen/Xcode on your cloud Mac build. The `.xlsx` importer handles Excel OpenXML shared strings, inline strings, and the first worksheet; legacy `.xls` is unsupported. Export to `.xlsx` or `.csv` from Google Sheets instead of providing a Google Sheets web link.
+
+Privacy: Student information and notes are stored locally in the app's Documents directory. Do not put real student data in public GitHub repositories. Store exported archives securely and comply with school student-record policies.

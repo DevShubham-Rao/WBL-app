@@ -10,6 +10,7 @@ struct RootView: View {
             StudentsView().tabItem { Label("Students",systemImage:"person.2.fill") }
             PlanView().tabItem { Label("Plan",systemImage:"map.fill") }
             HistoryView().tabItem { Label("Mileage",systemImage:"car.fill") }
+            DataView().tabItem { Label("Data",systemImage:"square.and.arrow.up") }
         }
         .tint(.indigo)
         .alert("Notice", isPresented: Binding(get:{store.errorMessage != nil},set:{if !$0 {store.errorMessage = nil}})) { Button("OK",role:.cancel) { store.errorMessage = nil } } message: { Text(store.errorMessage ?? "") }
@@ -167,31 +168,85 @@ struct ImportView: View {
     @EnvironmentObject var store: VisitStore
     @Environment(\.dismiss) var dismiss
     @State private var text = ""
+    @State private var importedStudents: [Student] = []
+    @State private var filename = ""
     @State private var filePicker = false
     @State private var replace = false
-    var parsed: [Student] { CSVImport.parse(text) }
+    @State private var loading = false
+    var parsed: [Student] { filename.isEmpty ? CSVImport.parse(text) : importedStudents }
     var body: some View {
         NavigationStack {
             Form {
-                Section { Text("CSV columns: First Name, Last Name, Graduation Year, Grade, Employer Name, Employer Address, Phone Number. Paste CSV or choose a .csv/.txt file. Quoted commas are supported.").font(.footnote) }
-                Section("Import source") {
-                    Button("Choose CSV or text file",systemImage:"doc") {filePicker=true}
-                    TextEditor(text:$text).frame(minHeight:160)
+                Section("Select spreadsheet") {
+                    Button("Choose CSV, TSV, or Excel .xlsx", systemImage:"doc.badge.plus") { filePicker = true }
+                    if !filename.isEmpty { Label(filename, systemImage:"doc.text") }
+                    Text("In Google Sheets: File → Download → Microsoft Excel (.xlsx) or Comma-separated values (.csv). Then select the saved file here.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section { Toggle("Replace current student list",isOn:$replace); Text("\(parsed.count) valid student rows found").foregroundStyle(.secondary) }
+                Section("Or paste rows") {
+                    Text("Paste a CSV with columns: First Name, Last Name, Graduation Year, Grade, Employer Name, Employer Address, Phone Number.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    TextEditor(text:$text).frame(minHeight:100)
+                        .onChange(of:text) { _, _ in filename = ""; importedStudents = [] }
+                }
+                Section("Preview • \(parsed.count) students") {
+                    if parsed.isEmpty { Text("Select a file or paste a list to preview it.").foregroundStyle(.secondary) }
+                    ForEach(parsed.prefix(15)) { student in
+                        VStack(alignment:.leading,spacing:3) {
+                            Text(student.fullName).font(.headline)
+                            Text(student.employer + " • " + student.address).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    if parsed.count > 15 { Text("And \(parsed.count - 15) more students…").foregroundStyle(.secondary) }
+                }
+                Section {
+                    Toggle("Replace current students",isOn:$replace)
+                    Text("Duplicates with the same student name and workplace address are skipped when adding.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             .navigationTitle("Import students")
-            .toolbar { ToolbarItem(placement:.cancellationAction) { Button("Cancel") {dismiss()} }; ToolbarItem(placement:.confirmationAction) { Button("Import") {
-                if replace { store.db.students=parsed } else {
-                    let existing=Set(store.db.students.map { ($0.fullName + "|" + $0.address).lowercased() })
-                    store.db.students += parsed.filter { !existing.contains(($0.fullName + "|" + $0.address).lowercased()) }
+            .toolbar {
+                ToolbarItem(placement:.cancellationAction) { Button("Cancel") {dismiss()} }
+                ToolbarItem(placement:.confirmationAction) {
+                    Button("Import \(parsed.count)") { applyImport() }.disabled(parsed.isEmpty || loading)
                 }
-                dismiss()
-            }.disabled(parsed.isEmpty) } }
-            .fileImporter(isPresented:$filePicker,allowedContentTypes:[.commaSeparatedText,.plainText]) { result in
-                do { let url=try result.get();let granted=url.startAccessingSecurityScopedResource();defer {if granted {url.stopAccessingSecurityScopedResource()} }; text=try String(contentsOf:url,encoding:.utf8) }
-                catch {store.errorMessage="Unable to read file: \(error.localizedDescription)"}
+            }
+            .fileImporter(isPresented:$filePicker, allowedContentTypes:[.commaSeparatedText,.plainText,UTType(filenameExtension:"tsv") ?? .plainText,UTType(filenameExtension:"xlsx") ?? .data]) { result in
+                do {
+                    let url = try result.get()
+                    let granted=url.startAccessingSecurityScopedResource()
+                    defer { if granted {url.stopAccessingSecurityScopedResource()} }
+                    let ext=url.pathExtension.lowercased()
+                    let students: [Student]
+                    if ext == "xlsx" { students = try SpreadsheetImport.students(from:url) }
+                    else {
+                        let bytes=try Data(contentsOf:url)
+                        guard let string=String(data:bytes,encoding:.utf8) ?? String(data:bytes,encoding:.utf16) else {
+                            throw NSError(domain:"WBL",code:1,userInfo:[NSLocalizedDescriptionKey:"Cannot decode file text"])
+                        }
+                        let clean=string.replacingOccurrences(of:"\u{FEFF}",with:"")
+                        if ext == "tsv" || (clean.contains("\t") && !clean.contains(",")) {
+                            students=CSVImport.students(fromRows: clean.components(separatedBy:.newlines).filter{ !$0.isEmpty }.map{$0.components(separatedBy:"\t")})
+                        } else { students=CSVImport.parse(clean) }
+                    }
+                    filename=url.lastPathComponent
+                    importedStudents=students
+                    if students.isEmpty {store.errorMessage="No valid student rows found. Check the column headers and data."}
+                } catch {store.errorMessage="Could not import spreadsheet: \(error.localizedDescription)"}
             }
         }
+    }
+    private func applyImport() {
+        let incoming=parsed
+        if replace { store.db.students=incoming; store.db.trips=[] }
+        else {
+            var existing=Set(store.db.students.map { ($0.fullName + "|" + $0.address).lowercased() })
+            for student in incoming {
+                let key=(student.fullName + "|" + student.address).lowercased()
+                if existing.insert(key).inserted {store.db.students.append(student)}
+            }
+        }
+        dismiss()
     }
 }
