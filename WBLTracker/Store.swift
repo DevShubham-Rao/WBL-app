@@ -43,7 +43,7 @@ import ZIPFoundation
             for (name, contents) in csvs {
                 try ("\u{FEFF}" + contents).write(to: folder.appendingPathComponent(name), atomically: true, encoding: .utf8)
             }
-            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .iso8601]
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; encoder.dateEncodingStrategy = .iso8601
             try encoder.encode(db).write(to: folder.appendingPathComponent("full_backup.json"), options: .atomic)
             let zipURL = FileManager.default.temporaryDirectory.appendingPathComponent("WBL-Complete-Export-" + UUID().uuidString + ".zip")
             guard let archive = Archive(url: zipURL, accessMode: .create) else { throw NSError(domain:"WBL",code:2,userInfo:[NSLocalizedDescriptionKey:"Could not create ZIP export."]) }
