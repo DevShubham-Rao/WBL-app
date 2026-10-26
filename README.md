@@ -1,42 +1,60 @@
-# WBL Visits — native iPhone app
+# WBL Visits — iOS app (visit-history update)
 
-Built with **SwiftUI + MapKit + CoreLocation**, XcodeGen, and the same `builder.json` / GitHub IPA build workflow style as the supplied Chessphone app. All student, notes, and trip data is stored locally in the phone's Documents directory as `wbl-visits.json`. No login, cloud database, analytics, or external student-data transmission is implemented. Route locations/addresses are provided to Apple Maps for directions and to Google Maps when the teacher chooses its external route link.
+A native **SwiftUI + MapKit + CoreLocation** iPhone application for work-based learning teachers. This is the complete source project based on the user's existing WBL-app repository, not an already-signed IPA. It preserves the supplied `project.yml`, `builder.json`, and `.github/workflows` layout for XcodeGen / GitHub IPA builds.
+
+## What's new in this release
+
+- **All-time visit tracking:** Visits are no longer reset on a monthly boundary. The old destructive "Start new month" action is gone. All records stay until the user explicitly selects **Data → Delete all app data** (or deletes the app from the phone without preserving the data).
+- **Visit count on each student:** Student rows show the number of recorded visits/contacts rather than a visited/not-visited icon.
+- **Student visit timeline:** Tap any student to see every recorded visit, with full date/time and its kind. You can also manually log a contact and export just that student's visits to CSV.
+- **Visit kinds:** Choose **In person**, **Zoom**, **Phone call**, or **Message** for *each selected student* when planning a session. Completing that stop records the kind and exact completion timestamp. The manual visit form can backdate a contact.
+- **Only in-person stops on map:** Route optimization and the Google Maps / Apple Maps navigation links include only In person stops. Remote contacts remain on the active-session checklist, but are never route waypoints. For remote-only sessions, the app does not require GPS or create mileage.
+- **More student sorting:** Last name, first name, employer, grade, graduation year, most visits, fewest visits, or most recently visited. You can filter to unvisited or previously visited students.
+- **Date-range exports:** **Data → Export individual reports** provides independent mileage, visit, and student CSV exports. Toggle **Choose a date range** to select arbitrary inclusive start and end dates (spanning any number of months/years). Mileage is filtered by *planned trip date*; visits are filtered by the *actual logged timestamp*. Date filters do not affect student-roster export.
+- **Complete export:** A ZIP backup still includes all students, every visit, notes, trips, individual trip stops, mileage CSV, and the full JSON snapshot without a date restriction.
 
 ## Screens
-- **Home:** active trip automatically shown on app launch; `I Have Visited` immediately stamps date and time and updates student status.
-- **Students:** full list, visited status, search, add/edit, CSV import by file or pasted text, visit history, dated editable notes.
-- **Plan:** date, student selection, GPS or manual origin, round-trip toggle, optimized stop order (nearest neighbor plus 2-opt) and Apple MapKit road-distance calculation.
-- **Mileage:** completed trips, estimated and editable actual reimbursement miles, total, shareable CSV.
 
-## Import CSV
-Header row (headerless files in this order also work):
+| Screen | What it does |
+|---|---|
+| Home | Shows active trip/session; mark students visited/contacted and save actual mileage for any in-person stops |
+| Students | Import roster, view visit counts, search, sort, filter; tap student for full visit timeline and notes |
+| Plan | Select students, set a visit type for each, pick a date, optionally optimize the in-person route and start session |
+| Mileage | Review completed travel and remote contact sessions; correct reimbursement miles after driving |
+| Data | Export mileage, visits, roster for selected dates; full ZIP backup; optional permanent full reset |
+
+## Import spreadsheets
+
+Students → Import accepts actual `.xlsx` workbooks, `.csv`, `.tsv` files and CSV pasted text. Google Sheets files should first be downloaded as Microsoft Excel (`.xlsx`) or CSV. Spreadsheet columns:
+
 ```
 First Name,Last Name,Graduation Year,Grade,Employer Name,Employer Address,Phone Number
 Jamie,Lee,2028,11,Example Workshop,"100 Main St, Columbus, GA",555-0100
 ```
-For text input, paste comma-separated CSV rows. Quoted commas and escaped double-quotes are handled.
 
-## IPA creation
-1. Create a **new GitHub repository**, upload the contents of this ZIP to its root, and ensure the default branch is `main`. Avoid overwriting the chess app repository.
-2. If your third-party builder expects a repository identity, edit `builder.json` `github.owner` and `github.repo` to point to the new repo.
-3. Run your builder's iOS build exactly as for Chessphone, with scheme **WBLTracker**. Alternatively, on GitHub: Actions → Build iOS IPA → Run workflow.
-4. The GitHub workflow produces an **unsigned IPA** under the `WBLTracker-unsigned-ipa` artifact. For a device-installable IPA, configure your builder or Xcode with an Apple signing certificate and provisioning profile (and permitted device ID for development/ad hoc builds).
-5. On a Mac with Xcode, `brew install xcodegen`, `xcodegen generate`, then open `WBLTracker.xcodeproj` to run on device or simulator.
+First worksheet is used for `.xlsx`; `.xls` and direct Google Sheets URL imports are not supported. Review the preview and student count before accepting an import. **Replacing a roster** is still destructive to roster records; export your data first.
 
-## Important behavior and limitations
-- **Mileage:** MapKit computes driving distance for each leg of the planned route at planning time. This is an estimate, not actual GPS odometer mileage. Teacher can enter or correct actual total miles on completion; mileage export uses saved miles.
-- **Optimization:** geographic nearest-neighbor with 2-opt improvement; not guaranteed globally optimal or traffic-aware. Calculation requires network connectivity.
-- **External maps:** Google Maps URL supports the full ordered route and return-to-origin; waypoint limits may vary by Google Maps platform and browser. Apple Maps public URL opens the **first leg**, not the multi-stop route.
-- **GPS:** on-demand when planning; no background tracking. Denial can be bypassed by entering an origin address.
-- **Data privacy:** this prototype has no authentication, encryption-at-rest beyond device protections, remote sync, or school-managed access controls. Only import real student information on an appropriately managed device and after school/district approval. Back up/export data before deleting the app: uninstalling may erase its data.
-- **Build verification:** generated on a Linux runner where iOS SDK/Xcode is unavailable; run an Xcode build on macOS to validate before deployment.
+## Existing-data compatibility
 
-## Updated: spreadsheet import, complete export, and resets
+Saved data is read from the same `wbl-visits.json` document in the app's local Documents directory. The new app decodes legacy `Student.visits: [Date]` entries and converts them into typed visit history **without changing their original timestamps**. Because the old version did not record a visit kind, migrated visits are marked **In person**. Preexisting trips with no explicit stop type also default to In person.
 
-- **Students → Import**: Select an actual `.xlsx` workbook (including a Google Sheets export), `.csv`, `.tsv`, or `.txt` file in the iOS Files picker. The first worksheet of an Excel workbook is used. Review the first 15 students and total count before tapping Import. Headers should be: First Name, Last Name, Graduation Year, Grade, Employer Name, Employer Address, Phone Number. You can also paste CSV text.
-- **Data → Prepare complete export**: Creates a single shareable ZIP containing `students.csv`, `visits.csv`, `notes.csv`, `trips.csv`, `trip_stops.csv`, and `full_backup.json`. CSV files can be opened in spreadsheet programs; JSON is a complete archival snapshot. The export can be saved to iCloud Drive or shared using the iOS share sheet.
-- **Data → Start new month**: Keeps students, employers, addresses, phones and student notes, but clears visit flags/history, all trips and mileage. **Export first** to preserve prior months.
-- **Data → Delete all app data**: Deletes all local student, visit, notes and trip data after a confirmation prompt. **Export first**.
-- `ZIPFoundation` is an SPM dependency and will be fetched automatically by XcodeGen/Xcode on your cloud Mac build. The `.xlsx` importer handles Excel OpenXML shared strings, inline strings, and the first worksheet; legacy `.xls` is unsupported. Export to `.xlsx` or `.csv` from Google Sheets instead of providing a Google Sheets web link.
+**Important:** Visits/trips that were already cleared using the older monthly reset cannot be recovered by this new build. The new version simply prevents future monthly wipes. Updating with the *same bundle identifier* generally preserves existing app data; uninstalling or using a new bundle identifier may not.
 
-Privacy: Student information and notes are stored locally in the app's Documents directory. Do not put real student data in public GitHub repositories. Store exported archives securely and comply with school student-record policies.
+## IPA build
+
+1. Extract the ZIP and upload the *contents* of `WBL-app-main/` to the root of your existing GitHub WBL repository.
+2. In `builder.json`, confirm that `github.owner` and `github.repo` match your account/repository, if your builder uses those fields.
+3. Run the existing iOS workflow with scheme **WBLTracker**. The XcodeGen project uses iOS 17.2+ and Swift 5.
+4. The GitHub Actions workflow can produce an **unsigned IPA**. For installation on a real iPhone, use appropriate Apple signing and provisioning with the permitted device.
+5. On a Mac with Xcode, run `xcodegen generate`, then build/open `WBLTracker.xcodeproj`.
+
+The app uses `ZIPFoundation` from Swift Package Manager for spreadsheets/export. A network connection is needed when Apple MapKit geocodes or estimates driving routes; remote-only sessions work without route requests.
+
+## Limitations and privacy
+
+- Mileage is **estimated using MapKit road distances**, not tracked by GPS. Enter/edit actual reimbursement miles after a trip.
+- Optimization uses a geographical nearest-neighbor / 2-opt heuristic rather than live-traffic global optimization.
+- Google Maps can open a multi-stop route, subject to its waypoint limits. Apple Maps' URL opens the **first** in-person leg, not a multi-stop tour.
+- Student notes, phone numbers, employer locations and visit histories are stored locally on the iPhone. There is no cloud sync, login, or server-side access control. Store exports securely and use only with school/district approval and appropriate student-data privacy safeguards.
+- Full reset is irreversible without an external backup. Export archives before reinstalling or switching devices.
+- Source checks were run with the Linux Swift frontend and a data-model migration test. A full native Xcode/iOS SDK build and device runtime test **have not** been performed in this environment.
