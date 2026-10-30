@@ -58,3 +58,17 @@ The app uses `ZIPFoundation` from Swift Package Manager for spreadsheets/export.
 - Student notes, phone numbers, employer locations and visit histories are stored locally on the iPhone. There is no cloud sync, login, or server-side access control. Store exports securely and use only with school/district approval and appropriate student-data privacy safeguards.
 - Full reset is irreversible without an external backup. Export archives before reinstalling or switching devices.
 - Source checks were run with the Linux Swift frontend and a data-model migration test. A full native Xcode/iOS SDK build and device runtime test **have not** been performed in this environment.
+
+## VisitPath app icon and branding
+
+- The supplied logo is included as `WBLTracker/Assets.xcassets/VisitPathLogo.imageset`.
+- The app's home-screen icon is a 1024 × 1024 opaque PNG in `WBLTracker/Assets.xcassets/AppIcon.appiconset`.
+- The XcodeGen project explicitly specifies `ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon`.
+- The iPhone display name is **VisitPath**. The existing build target/scheme remains **WBLTracker** for GitHub builder compatibility.
+- The bundle identifier remains **com.buildertest.wbltracker**, matching the old app so an update is more likely to retain locally stored student data. Do not change this without considering data migration and signing.
+- Color themes are selectable in **Settings**. Your choice is saved on the device.
+
+### Build troubleshooting
+
+Run `xcodegen generate` to regenerate `VisitPath.xcodeproj`, then build the **WBLTracker** scheme.
+The warning about `ZIPFoundation.Archive.init` being deprecated is not a build-blocking error.

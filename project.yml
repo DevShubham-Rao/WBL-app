@@ -23,7 +23,8 @@ targets:
         NSLocationWhenInUseUsageDescription: "Your location is used only when planning workplace visits and calculating trip mileage."
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.buildertest.visitpath
+        PRODUCT_BUNDLE_IDENTIFIER: com.buildertest.wbltracker
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
