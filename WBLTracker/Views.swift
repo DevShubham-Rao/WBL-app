@@ -4,6 +4,8 @@ import CoreLocation
 
 struct RootView: View {
     @EnvironmentObject var store: VisitStore
+    @EnvironmentObject var theme: ThemeManager
+
     var body: some View {
         TabView {
             DashboardView().tabItem { Label("Home",systemImage:"house.fill") }
@@ -11,31 +13,45 @@ struct RootView: View {
             PlanView().tabItem { Label("Plan",systemImage:"map.fill") }
             HistoryView().tabItem { Label("Mileage",systemImage:"car.fill") }
             DataView().tabItem { Label("Data",systemImage:"square.and.arrow.up") }
+            SettingsView().tabItem { Label("Settings", systemImage:"paintpalette.fill") }
         }
-        .tint(.indigo)
+        .tint(theme.current.palette.tint)
         .alert("Notice", isPresented: Binding(get:{store.errorMessage != nil},set:{if !$0 {store.errorMessage = nil}})) { Button("OK",role:.cancel) { store.errorMessage = nil } } message: { Text(store.errorMessage ?? "") }
     }
 }
 struct DashboardView: View {
     @EnvironmentObject var store: VisitStore
+    @EnvironmentObject var theme: ThemeManager
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:18) {
+                    BrandHeaderView(subtitle: "Simple workplace visit tracking")
                     HStack(spacing:12) {
                         summary("Students", "\(store.db.students.count)","person.2")
                         summary("Total visits", "\(store.db.students.reduce(0) { $0 + $1.visitCount })","number.circle")
                     }
+                    VStack(alignment:.leading, spacing:10) {
+                        Text("Quick start")
+                            .font(.headline)
+                        Label("Open Students to import or add a roster.", systemImage: "square.and.arrow.down")
+                        Label("Open Plan to choose who you are visiting today.", systemImage: "map")
+                        Label("Use Data to export records whenever you need them.", systemImage: "square.and.arrow.up")
+                    }
+                    .padding()
+                    .background(theme.current.palette.cardBackground, in: RoundedRectangle(cornerRadius: 18))
                     if let trip = store.activeTrip {
-                        Text("ACTIVE TRIP").font(.caption.bold()).foregroundStyle(.indigo)
+                        Text("ACTIVE TRIP").font(.caption.bold()).foregroundStyle(theme.current.palette.tint)
                         TripCard(trip:trip)
                     } else {
-                        ContentUnavailableView("No active trip",systemImage:"map",description:Text("Select students in the Plan tab to begin a workplace visit route."))
+                        ContentUnavailableView("No active trip",systemImage:"map",description:Text("Go to the Plan tab to choose students and begin a route or contact session."))
                     }
                 }.padding()
-            }.navigationTitle("WBL Visits")
+            }.navigationTitle("VisitPath")
         }
     }
+
     func summary(_ title:String,_ value:String,_ icon:String) -> some View {
         VStack(alignment:.leading,spacing:8) { Label(title,systemImage:icon).font(.subheadline).foregroundStyle(.secondary); Text(value).font(.largeTitle.bold()) }
             .frame(maxWidth:.infinity,alignment:.leading).padding().background(.regularMaterial,in:RoundedRectangle(cornerRadius:16))
@@ -60,6 +76,7 @@ enum StudentFilter: String, CaseIterable, Identifiable {
 }
 struct StudentsView: View {
     @EnvironmentObject var store: VisitStore
+    @EnvironmentObject var theme: ThemeManager
     @State private var search = ""
     @State private var showingImport = false
     @State private var adding = false
@@ -105,8 +122,8 @@ struct StudentsView: View {
                             Text("\(s.visitCount)")
                                 .font(.headline.monospacedDigit())
                                 .padding(.horizontal,12).padding(.vertical,7)
-                                .foregroundStyle(s.visitCount > 0 ? .indigo : .secondary)
-                                .background(Color.indigo.opacity(s.visitCount > 0 ? 0.12 : 0.05),in:Capsule())
+                                .foregroundStyle(s.visitCount > 0 ? theme.current.palette.tint : .secondary)
+                                .background((s.visitCount > 0 ? theme.current.palette.softTint : Color.secondary.opacity(0.08)),in:Capsule())
                                 .accessibilityLabel("\(s.visitCount) recorded visits")
                         }
                     }
@@ -167,6 +184,7 @@ struct StudentFormView: View {
 }
 struct StudentDetailView: View {
     @EnvironmentObject var store: VisitStore
+    @EnvironmentObject var theme: ThemeManager
     let studentID: UUID
     @State private var editing = false
     @State private var loggingVisit = false
@@ -196,7 +214,7 @@ struct StudentDetailView: View {
                         if s.visitCount == 0 { Text("No visits recorded yet").foregroundStyle(.secondary) }
                         ForEach(s.allVisits.sorted { $0.at > $1.at }) { record in
                             HStack(alignment:.top,spacing:12) {
-                                Image(systemName:record.kind.symbol).foregroundStyle(.indigo)
+                                Image(systemName:record.kind.symbol).foregroundStyle(theme.current.palette.tint)
                                 VStack(alignment:.leading,spacing:5) {
                                     Text(record.kind.rawValue).font(.subheadline.bold())
                                     Text(record.at.formatted(date:.complete,time:.standard))

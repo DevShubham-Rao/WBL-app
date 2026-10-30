@@ -3,6 +3,7 @@ import CoreLocation
 
 struct PlanView: View {
     @EnvironmentObject var store: VisitStore
+    @EnvironmentObject var theme: ThemeManager
     @StateObject private var location = LocationService()
     @State private var selected = Set<UUID>()
     @State private var selectedTypes: [UUID: VisitKind] = [:]
@@ -46,7 +47,7 @@ struct PlanView: View {
                             } label: {
                                 HStack(spacing:12) {
                                     Image(systemName:selected.contains(s.id) ? "checkmark.circle.fill":"circle")
-                                        .foregroundStyle(selected.contains(s.id) ? .indigo : .secondary)
+                                        .foregroundStyle(selected.contains(s.id) ? theme.current.palette.tint : .secondary)
                                     VStack(alignment:.leading,spacing:3) {
                                         Text(s.fullName).foregroundStyle(.primary).font(.headline)
                                         Text("\(s.employer) • \(s.visitCount) recorded visits")
@@ -140,6 +141,7 @@ struct PlanView: View {
 
 struct TripCard: View {
     @EnvironmentObject var store: VisitStore
+    @EnvironmentObject var theme: ThemeManager
     let trip: Trip
     @State private var finalMileage = ""
     @State private var confirmFinish = false
@@ -150,7 +152,7 @@ struct TripCard: View {
     var body: some View {
         VStack(alignment:.leading,spacing:15) {
             HStack {
-                Image(systemName:"calendar.badge.clock").foregroundStyle(.indigo)
+                Image(systemName:"calendar.badge.clock").foregroundStyle(theme.current.palette.tint)
                 Text(trip.date.formatted(date:.abbreviated,time:.omitted)).font(.headline)
                 Spacer()
                 Text("\(trip.stops.filter{$0.arrival != nil}.count)/\(trip.stops.count) completed")
@@ -166,7 +168,7 @@ struct TripCard: View {
                             if stop.arrival != nil { Label("Done",systemImage:"checkmark.circle.fill").foregroundStyle(.green).font(.caption) }
                         }
                         Label(stop.visitKind.rawValue,systemImage:stop.visitKind.symbol)
-                            .font(.subheadline).foregroundStyle(.indigo)
+                            .font(.subheadline).foregroundStyle(theme.current.palette.tint)
                         Text(s.employer).font(.subheadline)
                         if stop.visitKind == .inPerson {
                             Text(s.address).font(.caption).foregroundStyle(.secondary)
@@ -218,7 +220,7 @@ struct TripCard: View {
                 } message: {
                     Text("All completed contacts and timestamps remain saved. Unmarked contacts won't be counted.")
                 }
-        }.padding().background(Color.indigo.opacity(0.07),in:RoundedRectangle(cornerRadius:18))
+        }.padding().background(theme.current.palette.cardBackground,in:RoundedRectangle(cornerRadius:18))
     }
 }
 

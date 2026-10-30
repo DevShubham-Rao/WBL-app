@@ -1,6 +1,6 @@
-# WBL Visits — iOS app (visit-history update)
+# VisitPath — iOS app (teacher-friendly theme update)
 
-A native **SwiftUI + MapKit + CoreLocation** iPhone application for work-based learning teachers. This is the complete source project based on the user's existing WBL-app repository, not an already-signed IPA. It preserves the supplied `project.yml`, `builder.json`, and `.github/workflows` layout for XcodeGen / GitHub IPA builds.
+A native **SwiftUI + MapKit + CoreLocation** iPhone application for work-based learning teachers, branded as **VisitPath**. This is the complete source project based on the user's existing WBL-app repository, not an already-signed IPA. It preserves the supplied `project.yml`, `builder.json`, and `.github/workflows` layout for XcodeGen / GitHub IPA builds.
 
 ## What's new in this release
 
