@@ -13,9 +13,37 @@ enum ReportKind: String, CaseIterable, Identifiable {
 @MainActor final class VisitStore: ObservableObject {
     @Published var db = Database() { didSet { save() } }
     @Published var errorMessage: String?
-    private let filename = "wbl-visits.json"
+    @Published private(set) var lastCleanupNotice: String?
+    @Published var automaticDeletionEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(automaticDeletionEnabled, forKey: "timestamp.autoDeleteEnabled")
+            if automaticDeletionEnabled { purgeExpiredRecords() }
+        }
+    }
+    private let filename = "wbl-visits.json" // Keep existing filename for in-place upgrades.
 
-    init() { load() }
+    init() {
+        automaticDeletionEnabled = UserDefaults.standard.object(forKey: "timestamp.autoDeleteEnabled") as? Bool ?? true
+        load()
+        // On first launch of this version, show the privacy notice BEFORE
+        // deleting older records; the teacher can choose to export them first.
+        if UserDefaults.standard.bool(forKey: "timestamp.privacyNoticeAcknowledged") {
+            purgeExpiredRecords()
+        }
+    }
+
+    var missingGraduationYearCount: Int {
+        db.students.filter { RetentionPolicy.deletionDate(for: $0.graduationYear) == nil }.count
+    }
+
+    func purgeExpiredRecords(now: Date = .now) {
+        guard automaticDeletionEnabled else { return }
+        let result = RetentionPolicy.cleanup(db, now: now)
+        guard result.removedStudents > 0 else { return }
+        db = result.database
+        clearTemporaryExports()
+        lastCleanupNotice = "Removed \(result.removedStudents) expired student record(s) and \(result.removedTrips) related trip(s)."
+    }
     private var url: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent(filename)
@@ -52,7 +80,10 @@ enum ReportKind: String, CaseIterable, Identifiable {
     }
 
     func update(_ student: Student) {
-        if let index = db.students.firstIndex(where: { $0.id == student.id }) { db.students[index] = student }
+        if let index = db.students.firstIndex(where: { $0.id == student.id }) {
+            db.students[index] = student
+            purgeExpiredRecords()
+        }
     }
     func student(_ id: UUID) -> Student? { db.students.first { $0.id == id } }
 
@@ -75,8 +106,22 @@ enum ReportKind: String, CaseIterable, Identifiable {
     }
     var activeTrip: Trip? { db.trips.first { $0.isActive } }
 
-    // No monthly reset: visits, mileage and notes persist until the explicit full reset.
-    func fullReset() { db = Database() }
+    // Clear temporary export artifacts this app created. Exports that have been
+    // saved to Files, shared, or included in backups are outside app control.
+    private func clearTemporaryExports() {
+        let temporary = FileManager.default.temporaryDirectory
+        let prefixes = ["Timestamp-", "WBL-Export-", "WBL-Complete-Export-", "WBL-Mileage-", "WBL-Visits-", "WBL-Students-"]
+        guard let files = try? FileManager.default.contentsOfDirectory(at: temporary, includingPropertiesForKeys: nil) else { return }
+        for file in files where prefixes.contains(where: { file.lastPathComponent.hasPrefix($0) }) {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+
+    // No monthly reset; expired student records are purged when auto deletion is on.
+    func fullReset() {
+        db = Database()
+        clearTemporaryExports()
+    }
 
     private func q(_ s: String) -> String { "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
     private func line(_ fields: [String]) -> String { fields.map(q).joined(separator: ",") }
@@ -117,11 +162,12 @@ enum ReportKind: String, CaseIterable, Identifiable {
     }
 
     func exportCSV(_ kind: ReportKind, start: Date? = nil, end: Date? = nil, studentID: UUID? = nil) -> URL? {
+        purgeExpiredRecords()
         if let start = start, let end = end, Calendar.current.startOfDay(for:start) > Calendar.current.startOfDay(for:end) {
             errorMessage = "The start date must be on or before the end date."
             return nil
         }
-        let name = "WBL-\(kind.rawValue)-\(UUID().uuidString).csv"
+        let name = "Timestamp-\(kind.rawValue)-\(UUID().uuidString).csv"
         let path = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         do {
             try ("\u{FEFF}" + csvReport(kind,start:start,end:end,studentID:studentID)).write(to:path,atomically:true,encoding:.utf8)
@@ -154,7 +200,8 @@ enum ReportKind: String, CaseIterable, Identifiable {
     var csvExport: String { studentsCSV }
 
     func exportFiles() -> [URL] {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("WBL-Export-" + UUID().uuidString, isDirectory:true)
+        purgeExpiredRecords()
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Timestamp-Export-" + UUID().uuidString, isDirectory:true)
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories:true)
             let csvs: [(String,String)] = [
@@ -168,7 +215,7 @@ enum ReportKind: String, CaseIterable, Identifiable {
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
             try encoder.encode(db).write(to:folder.appendingPathComponent("full_backup.json"),options:.atomic)
-            let zipURL = FileManager.default.temporaryDirectory.appendingPathComponent("WBL-Complete-Export-" + UUID().uuidString + ".zip")
+            let zipURL = FileManager.default.temporaryDirectory.appendingPathComponent("Timestamp-Complete-Export-" + UUID().uuidString + ".zip")
             guard let archive = Archive(url: zipURL, accessMode: .create) else {
                 throw NSError(domain:"WBL",code:2,userInfo:[NSLocalizedDescriptionKey:"Could not create ZIP export."])
             }

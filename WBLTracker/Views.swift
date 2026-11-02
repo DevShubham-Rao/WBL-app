@@ -5,6 +5,8 @@ import CoreLocation
 struct RootView: View {
     @EnvironmentObject var store: VisitStore
     @EnvironmentObject var theme: ThemeManager
+    @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("timestamp.privacyNoticeAcknowledged") private var privacyAcknowledged = false
 
     var body: some View {
         TabView {
@@ -16,6 +18,25 @@ struct RootView: View {
             SettingsView().tabItem { Label("Settings", systemImage:"paintpalette.fill") }
         }
         .tint(theme.current.palette.tint)
+        .preferredColorScheme(theme.appearance.colorScheme)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active && privacyAcknowledged { store.purgeExpiredRecords() }
+        }
+        .sheet(isPresented: Binding(
+            get: { !privacyAcknowledged },
+            set: { _ in }
+        )) {
+            PrivacyNoticeView(
+                acknowledge: {
+                    privacyAcknowledged = true
+                    store.purgeExpiredRecords()
+                },
+                reviewBeforeDeleting: {
+                    store.automaticDeletionEnabled = false
+                    privacyAcknowledged = true
+                }
+            )
+        }
         .alert("Notice", isPresented: Binding(get:{store.errorMessage != nil},set:{if !$0 {store.errorMessage = nil}})) { Button("OK",role:.cancel) { store.errorMessage = nil } } message: { Text(store.errorMessage ?? "") }
     }
 }
@@ -48,7 +69,7 @@ struct DashboardView: View {
                         ContentUnavailableView("No active trip",systemImage:"map",description:Text("Go to the Plan tab to choose students and begin a route or contact session."))
                     }
                 }.padding()
-            }.navigationTitle("VisitPath")
+            }.navigationTitle("Timestamp")
         }
     }
 
@@ -179,6 +200,7 @@ struct StudentFormView: View {
         var s = student ?? Student(firstName:first,lastName:last,graduationYear:year,grade:grade,employer:employer,address:address,phone:phone)
         s.firstName=first;s.lastName=last;s.graduationYear=year;s.grade=grade;s.employer=employer;s.address=address;s.phone=phone
         if student == nil { store.db.students.append(s) } else { store.update(s) }
+        store.purgeExpiredRecords()
         dismiss()
     }
 }
@@ -203,6 +225,12 @@ struct StudentDetailView: View {
                         LabeledContent("Phone",value:s.phone)
                         LabeledContent("Grade",value:s.grade)
                         LabeledContent("Graduates",value:s.graduationYear)
+                        if let deleteDate = RetentionPolicy.deletionDate(for: s.graduationYear) {
+                            LabeledContent(store.automaticDeletionEnabled ? "Deletion due" : "Retention cutoff", value: deleteDate.formatted(date: .abbreviated, time: .omitted))
+                        } else {
+                            Label("Enter a valid graduation year for automatic deletion", systemImage: "exclamationmark.triangle")
+                                .font(.footnote).foregroundStyle(.orange)
+                        }
                     }
                     Section("Visit history • \(s.visitCount) total") {
                         Button("Log a visit or contact",systemImage:"plus.circle") { loggingVisit = true }
@@ -388,6 +416,7 @@ struct ImportView: View {
                 if existing.insert(key).inserted {store.db.students.append(student)}
             }
         }
+        store.purgeExpiredRecords()
         dismiss()
     }
 }

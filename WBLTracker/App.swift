@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct WBLTrackerApp: App {
+struct TimestampApp: App {
     @StateObject private var store = VisitStore()
     @StateObject private var theme = ThemeManager()
 

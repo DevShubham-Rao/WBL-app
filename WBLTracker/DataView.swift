@@ -34,17 +34,22 @@ struct DataView: View {
                     }
                 }
                 Section("Complete backup • all dates") {
-                    Text("Exports every student, all visit records (including visit types), employers, notes, completed and active trips, route stops and mileage. Includes a JSON snapshot. No date filter is applied to backups.")
+                    Text("Exports all currently retained student records, visits, notes, trips and mileage, including a JSON backup. Expired records already deleted by automatic retention are not included. Save exports only to approved secure storage.")
                         .font(.footnote).foregroundStyle(.secondary)
                     Button("Export everything as ZIP",systemImage:"archivebox") {
                         files = store.exportFiles()
                         exportPresented = !files.isEmpty
                     }
                 }
-                Section("History stays saved") {
-                    Label("Visits and mileage never reset when the month changes.",systemImage:"calendar.badge.checkmark")
-                    Text("For a monthly report, choose the first and last day above. You don't need to delete or reset data to start a new month.")
+                Section("Records & retention") {
+                    Label("Monthly changes do not erase visit history.", systemImage: "calendar.badge.checkmark")
+                    Text("Student records expire July 1 of the year after their graduation year when automatic deletion is enabled in Settings. For example, graduation year 2028 is due July 1, 2029.")
                         .font(.footnote).foregroundStyle(.secondary)
+                    Text("It is your responsibility to transfer school-required data securely to an approved system before deletion, or manage deletion yourself if automatic deletion is off. Copies already exported or backed up are not automatically erased.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    if let notice = store.lastCleanupNotice {
+                        Text(notice).font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
                 Section("Full reset — permanent") {
                     Text("Deletes all students, notes, visits, trips and mileage stored on this device. This is the only reset; export a backup before using it.")
